@@ -32,7 +32,7 @@ namespace Bankomat
             }
             return new List<User>()
         {
-            new User("Test", "Testare", "test")
+            new User("Test", "Testare", "test", 11111)
         };
         }
     }

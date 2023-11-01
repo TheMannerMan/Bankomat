@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Bankomat
 {
     public class LogicAndData
-    {        
+    {
         //When the program starts and an instance of LogicAndData is created. It will retreive a list of bankaccounts thats saved externally
         public List<User> allUserAccounts = new DataRepository().LoadUserAccountsFromFile();
         private Random random = new Random();
@@ -20,74 +20,69 @@ namespace Bankomat
         {
             Console.Clear();
             Console.WriteLine("You are logging in.");
-            Console.WriteLine();            
+            Console.WriteLine();
             User currentUser = null;
             while (true)
             {
-                Console.Write("Type the name of the recipient: ");
-                string nameOfRecipientAccount = Console.ReadLine().Trim();
-                string[] temp = nameOfRecipientAccount.Split(' '); //splits "nameOfRecipientAccount" from 1 string into 2 elements in an array.
-                                                                   //Checks to see if the recipients first and last name matches account number
-                if (temp.Length != 2 || temp[0] != recepientAccount.firstName || temp[1] != recepientAccount.lastName) //If the match is false, you get the error message inside the statement.
+                User ActiveUserLoggingIn = null;
+                ActiveUserLoggingIn = GetExistingUserAtLogin();
+
+                if (ActiveUserLoggingIn != null)
                 {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Account number and name don't match. Please try again.");
+                    Console.WriteLine();
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Account found.");
                     Console.ResetColor();
-                    continue;
-                }
-
-
-                Console.Write("Type in your full name:");
-
-
-                if (int.TryParse(Console.ReadLine(), out int result))
-                {
-                    currentUser = GetBankAccountByAccountNumber(result); //matches user input against saved account numbers.
-                    if (currentUser != null)
+                    if (PasswordCheck(ActiveUserLoggingIn, PasswordGenerator()))//Gets the password from the user, using the same method when creating a new password and the control if its a match with the password saved in database.
                     {
-                        Console.WriteLine();
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("Account found.");
-                        Console.ResetColor();
-                        string loginPassword = PasswordGenerator(); //Gets the password from the user, using the same method when creating a new password.
-                        if (PasswordCheck(result, loginPassword))//matches account number to password
-                        {
-                            atmUI.AccountMenu(currentUser); //Takes user to next menu if successfull
-                        }
-                        else //error response
-                        {
-                            Console.Clear();
-                            Console.WriteLine();
-                            Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("Invalid password");
-                            Console.ResetColor();
-                            Console.ReadKey();
-                        }
-                        break;
+                        //TODO: här behöver vi ett steg där vi kontrollerar ifall användaren har flera än ett konto. 
+                        atmUI.AccountMenu(ActiveUserLoggingIn); //Takes user to next menu if successfull
                     }
-                    else//error response
+                    else //error response
                     {
                         Console.Clear();
                         Console.WriteLine();
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Account not found.");
+                        Console.WriteLine("Invalid password");
                         Console.ResetColor();
-                        Console.WriteLine("Press \"Enter\" to return to main menu");
-                        Console.WriteLine();
                         Console.ReadKey();
-                        break;
                     }
+                    break;
                 }
                 else//error response
                 {
+                    Console.Clear();
+                    Console.WriteLine();
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Invalid input. Numbers only.");
+                    Console.WriteLine("Account not found.");
                     Console.ResetColor();
+                    Console.WriteLine("Press \"Enter\" to return to main menu");
                     Console.WriteLine();
                     Console.ReadKey();
+                    break;
                 }
+
             }
         }
+        // TODO: skriv kommentarer till denna
+        public User GetExistingUserAtLogin()
+        {
+            Console.Write("Type your full name: ");
+            string nameOfUser = Console.ReadLine().Trim();
+            string[] temp = nameOfUser.Split(' '); //splits "nameOfRecipientAccount" from 1 string into 2 elements in an array.
+
+            //TODO: Hur hanterar vi namn med fler än 2 namn? T.ex. Otto Von Snorre?
+            foreach (User user in allUserAccounts)
+            {
+                if (temp[0] == user.firstName && temp[1] == user.lastName)
+                {
+                    return user;
+                }
+
+            }
+            return null;
+        }
+
         /// <summary>
         /// Lets the user create a new password. It will show as stars "*" for the user, but the program will understand whatever the user inputs and save it as a string.
         /// </summary>
@@ -152,7 +147,7 @@ namespace Bankomat
 
             while (true)
             {
-                
+
                 Console.Write("Please enter the account number of the recipient: ");
                 if (int.TryParse(Console.ReadLine(), out int result))
                 {
@@ -175,14 +170,14 @@ namespace Bankomat
                     else//error response if account wasnt found or user input wrong numbers.
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Recipient account not found. Please try again.\n"); 
+                        Console.WriteLine("Recipient account not found. Please try again.\n");
                         Console.ResetColor();
                         Console.ReadKey();
                     }
                 }
                 else//error response
                 {
-                    Console.ForegroundColor= ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine();
                     Console.WriteLine("Invalid input.");
                     Console.ResetColor();
@@ -190,24 +185,18 @@ namespace Bankomat
                     Console.WriteLine();
                     Console.ReadKey();
                     return null;
-                }               
-            }
-        }
-        /// <summary>
-        /// Compares users account number to his/hers password.
-        /// </summary>
-        /// <param name="accountNumber"></param>
-        /// <returns></returns>  
-        public bool PasswordCheck(int result, string loginPassword)
-        {
-            foreach (User bankAccount in allBankAccounts)//Loops through all saved accounts
-            {
-                if (bankAccount.accountNumber == result && bankAccount.Password == loginPassword) //Matches users input of account number and password against saved accouts
-                {
-                    return true;//if all matches, returns true = successful login
                 }
             }
-            return false;//if either one doesnt match, returns false = unsuccessful login.
+        }
+
+        public bool PasswordCheck(User userLoggingIN, string loginPassword)
+        {
+
+            if (userLoggingIN.Password == loginPassword) // Controlls if password given by the user logging in matches the password saved to the system.
+            {
+                return true;// successful login
+            }
+            return false;// unsuccessful login.
         }
         /// <summary>
         /// Checks to see if there's an account with the exact name.
@@ -217,11 +206,11 @@ namespace Bankomat
         /// <returns>User already exists = true</returns>
         public bool UserExistCheck(string firstName, string lastName)
         {
-            foreach (User bankAccount in allBankAccounts) //Loops through all saved accounts
+            foreach (User user in allUserAccounts) //Loops through all saved accounts
             {
-                if (bankAccount.firstName.ToLower() == firstName.ToLower() && bankAccount.lastName.ToLower() == lastName.ToLower()) //Compares user input to saved accounts.
+                if (user.firstName.ToLower() == firstName.ToLower() && user.lastName.ToLower() == lastName.ToLower()) //Compares user input to saved accounts.
                 {
-                    Console.WriteLine($"User {firstName} {lastName} already exist. Account number is {bankAccount.accountNumber}.");
+                    Console.WriteLine($"User {firstName} {lastName} already exist.");
                     return true; //if person exists, returns true
                 }
             }
@@ -231,17 +220,23 @@ namespace Bankomat
 
         #region Create account methods
         /// <summary>
-        /// Generates a random number between 10,000-99,999. Doublechecks current account numbers saved in "allBankAccounts"-list to create a new unique number.
+        /// Generates a random number between 10,000-99,999. Doublechecks current saved account numbers to create a new unique number.
         /// </summary>
         /// <returns>BankAccount.accountNumber</returns>
         public int GenerateAccountNumber()
         {
             int newAccountNumber;
+            bool isUnique;
+
             do
             {
-                newAccountNumber = random.Next(10000, 99999); //rolls a number and saves it in a variable.
-                //Compares current value of "newAccountNumber" to other account number saved in the list. Loops again if a match is found. Continues until a unique number is found.
-            } while (allBankAccounts.Any(BankAccount => BankAccount.accountNumber == newAccountNumber));
+                newAccountNumber = random.Next(10000, 99999); // Generate a new account number.
+
+                // Check if the newAccountNumber is unique across all user accounts and their bank accounts.
+                isUnique = !allUserAccounts.Any(user => user.userBankAccounts.Any(account => account.accountNumber == newAccountNumber));
+
+            } while (!isUnique);
+
             return newAccountNumber;
         }
         /// <summary>
@@ -249,9 +244,9 @@ namespace Bankomat
         /// Saves the account in a list containing all the info using a constructor in BankAccount class.
         /// </summary>
         public void CreateAccount()
-        {           
+        {
             Console.Clear();
-            Console.WriteLine();           
+            Console.WriteLine();
             Console.WriteLine("You are creating a new account.");
             Console.WriteLine();
             Console.Write("Please type you first name: ");
@@ -261,14 +256,14 @@ namespace Bankomat
             if (!UserExistCheck(firstName, lastName)) //Checks to see if user already exists.
             {
                 string password = PasswordGenerator(); //Lets user create a new password
-                int accountNumber = GenerateAccountNumber(); //Gives the user a randomly generated 5-digit account number. 
-                User newBankAccount = new User(firstName, lastName, password, accountNumber);
-                allBankAccounts.Add(newBankAccount); //Saves the newly constructed account to the list.
+                int newAccountNumber = GenerateAccountNumber(); // Generates an unique number for the users first account.
+                User newUserAccount = new User(firstName, lastName, password, newAccountNumber);
+                allUserAccounts.Add(newUserAccount); //Saves the newly constructed account to the list.
                 Console.Clear();
                 Console.WriteLine();
                 Console.WriteLine("Bank account created!" +
                     $"\nAccount owner: {firstName} {lastName}" +
-                    $"\nAccount number: {accountNumber}" +
+                    $"\nAccount number: {newAccountNumber}" +
                     $"\nAccount password: {password}");
                 Console.ForegroundColor = ConsoleColor.Cyan;
                 Console.WriteLine("\n\nPlease save your account info for later use!");
@@ -308,7 +303,7 @@ namespace Bankomat
                         Console.ResetColor();
                         Console.ReadKey();
                     }
-                     
+
                     else //error response
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
@@ -334,7 +329,7 @@ namespace Bankomat
         /// <param name="currentUserAccount"></param>
         public void SeeTransferHistory(User currentUserAccount)
 
-        {       
+        {
             Console.Clear();
             Console.WriteLine();
             Console.WriteLine("Nr\tType".PadRight(15) + "\tAmount".PadRight(10) + "\tBalance".PadRight(10) + "\tDate and time");
@@ -347,7 +342,7 @@ namespace Bankomat
                 string[] historikArray = historikAttSkrivaUt.Split(new char[] { ',' }); //Splits and seperates the single string into an array with (in this case) 4 elements.
                 //Prints out the array in a stylish fashion.
                 Console.WriteLine($"{i + 1}\t{historikArray[0].PadRight(10)}\t{historikArray[1].PadRight(15)}\t{historikArray[2].PadRight(15)}\t{historikArray[3]}");
-              
+
             }
             Console.WriteLine();
             Console.WriteLine();
@@ -376,7 +371,7 @@ namespace Bankomat
                 }
                 if (amount <= 0) //Makes sure you cant steal from recipient.
                 {
-                    Console.ForegroundColor= ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("You can't transfer a non-positive amount.");
                     Console.ResetColor();
                     Console.ReadKey();
@@ -384,7 +379,7 @@ namespace Bankomat
                 }
                 if (amount > currentUserAccount.Balance) //Makes sure you can afford the transfer
                 {
-                    Console.ForegroundColor= ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"Your balance ({currentUserAccount.Balance:C}) is too low for the requested transfer.");
                     Console.ResetColor();
                     Console.ReadKey();
@@ -398,8 +393,8 @@ namespace Bankomat
                 Console.ResetColor();
                 Console.ReadKey();
                 //saves the new balance for each account. Current user and Recipient.               
-                currentUserAccount.SaveEventToTransferHistory($"Trans > {recepientAccount.accountNumber}", amount);              
-                recepientAccount.SaveEventToTransferHistory($"Trans < {currentUserAccount.accountNumber}", amount);                
+                currentUserAccount.SaveEventToTransferHistory($"Trans > {recepientAccount.accountNumber}", amount);
+                recepientAccount.SaveEventToTransferHistory($"Trans < {currentUserAccount.accountNumber}", amount);
             }
             else //Error response
             {

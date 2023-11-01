@@ -42,7 +42,7 @@ namespace Bankomat
                             break;
 
                         case 3:
-                            _dataRepository.SaveBankAccountsToFile(_atm.allBankAccounts); //Saves current data 
+                            _dataRepository.SaveBankAccountsToFile(_atm.allUserAccounts); //Saves current data 
                             Environment.Exit(0); //Closes the program.
                             break;
 
