@@ -16,15 +16,33 @@ namespace Bankomat
         /// Will start a login procedure. Will check if account number exists and password matches.
         /// </summary>
         /// <param name="atmUI"></param>
-        public void Login(UI atmUI)
+        public User GetExistingUserAtLogin()
+        {
+            Console.Write("Type your full name: ");
+            string nameOfUser = Console.ReadLine().Trim();
+            string[] temp = nameOfUser.Split(' '); //splits "nameOfRecipientAccount" from 1 string into 2 elements in an array.
+
+            //TODO: Hur hanterar vi namn med fler än 2 namn? T.ex. Otto Von Snorre?
+            foreach (User user in allUserAccounts)
+            {
+                if (temp[0] == user.firstName && temp[1] == user.lastName)
+                {
+                    return user;
+                }
+
+            }
+            return null;
+        }
+        public User Login(UI atmUI)
         {
             Console.Clear();
             Console.WriteLine("You are logging in.");
             Console.WriteLine();
-            User currentUser = null;
+            User ActiveUserLoggingIn = null;
+            //User currentUser = null; BEHÖVER DEN HÄR VARA MED LÄNGRE EFTER ÄNDRINGAR?
             while (true)
             {
-                User ActiveUserLoggingIn = null;
+                
                 ActiveUserLoggingIn = GetExistingUserAtLogin();
 
                 if (ActiveUserLoggingIn != null)
@@ -36,7 +54,7 @@ namespace Bankomat
                     if (PasswordCheck(ActiveUserLoggingIn, PasswordGenerator()))//Gets the password from the user, using the same method when creating a new password and the control if its a match with the password saved in database.
                     {
                         //TODO: här behöver vi ett steg där vi kontrollerar ifall användaren har flera än ett konto. 
-                        atmUI.AccountMenu(ActiveUserLoggingIn); //Takes user to next menu if successfull
+                        return ActiveUserLoggingIn; //Takes user to next menu if successfull TODO: ÄR DENNA KOMMENTAR FORTFARANDE RELEVANT?
                     }
                     else //error response
                     {
@@ -63,24 +81,40 @@ namespace Bankomat
                 }
 
             }
+            return ActiveUserLoggingIn;
         }
         // TODO: skriv kommentarer till denna
-        public User GetExistingUserAtLogin()
+        public BankAccount LetUserChooseBankAccount(User loginUser)
         {
-            Console.Write("Type your full name: ");
-            string nameOfUser = Console.ReadLine().Trim();
-            string[] temp = nameOfUser.Split(' '); //splits "nameOfRecipientAccount" from 1 string into 2 elements in an array.
-
-            //TODO: Hur hanterar vi namn med fler än 2 namn? T.ex. Otto Von Snorre?
-            foreach (User user in allUserAccounts)
+            Console.WriteLine("You have multiple bank accounts.");
+            while (true)
             {
-                if (temp[0] == user.firstName && temp[1] == user.lastName)
+                for (int i = 0; i < loginUser.userBankAccounts.Count; i++)
                 {
-                    return user;
+                    Console.WriteLine($"{i + 1}: {loginUser.userBankAccounts[i].accountNumber}");
                 }
-
+                Console.Write("Please choose a bankaccount for login:");
+                if (Int32.TryParse(Console.ReadLine(), out int userChoice))
+                {
+                    if (userChoice > 0 && userChoice <= loginUser.userBankAccounts.Count)
+                    {
+                        return loginUser.userBankAccounts[userChoice - 1];
+                    }
+                    else
+                    {
+                        Console.Clear();
+                        Console.WriteLine("Choice out of range.");
+                        continue;
+                    }
+                }
+                else
+                {
+                    Console.Clear();
+                    Console.WriteLine("Invalid input");
+                    continue;
+                }
             }
-            return null;
+
         }
 
         /// <summary>
@@ -119,31 +153,45 @@ namespace Bankomat
         }
 
         #region Methods used to check and get existing data
+        public bool CheckIfMultipleBankAccount(User currentUser)
+        {
+            if (currentUser.userBankAccounts.Count > 1)
+            {
+                return true;
+            }
+            else { return false; }
+        }
         /// <summary>
         /// Loops through saved accounts in "allBankAccouts" list. Trying to match user input to saved account numbers.
         /// </summary>
         /// <param name="accountNumber"></param>
         /// <returns>Recipient account number</returns>
-        public User GetBankAccountByAccountNumber(int accountNumber)
+        public (User, BankAccount) GetBankAccountByAccountNumber(int searchingAccountNumber)
         {
-            User bankAccountToReturn = null;
-            foreach (User bankAccount in allBankAccounts) //Loops through all saved accounts
+            User nonExistingUserAccountToReturn = null;
+            BankAccount nonExistingBankAccountToReturn = null;
+
+            foreach (User user in allUserAccounts) //Loops through all saved accounts
             {
-                if (bankAccount.accountNumber == accountNumber) //Checks user input for exact matches 
+                foreach(BankAccount bankAccount in user.userBankAccounts)
                 {
-                    bankAccountToReturn = bankAccount; //sets and returns if match is found
-                    return bankAccountToReturn;
+                    if (bankAccount.accountNumber == searchingAccountNumber) //Checks user input for exact matches 
+                    {
+                        
+                        return (user, bankAccount); //returns a tuple of the current bankaccount and useraccount
+                    }
                 }
+                
             }
-            return bankAccountToReturn; // Account not found
+            return (nonExistingUserAccountToReturn, nonExistingBankAccountToReturn);
         }
         /// <summary>
         /// Lets user input an account number thats matching currently saved accounts for a transfer.
         /// </summary>
         /// <returns>recipients account number as a class</returns>
-        private User GetRecipientAccount()
+        private (BankAccount, User) GetRecipientBankAccountAndUserAccount()
         {
-            User recepientAccount = null; //set recipient account as null, local variable
+           //(User, BankAccount) recepientBankAccount = (null, null); //set recipient account as null, local variable
 
             while (true)
             {
@@ -151,21 +199,22 @@ namespace Bankomat
                 Console.Write("Please enter the account number of the recipient: ");
                 if (int.TryParse(Console.ReadLine(), out int result))
                 {
-                    recepientAccount = GetBankAccountByAccountNumber(result); //Checks users input to saved account numbers.
-                    if (recepientAccount != null) //If match is found.
+                    //Checks users input to saved account and banknumbers. If they exist they are saved as a tuple.
+                    var (recepientUserAccount, recepientBankAccount) = GetBankAccountByAccountNumber(result);
+                    if (recepientUserAccount != null && recepientBankAccount != null) //If match is found.
                     {
                         Console.Write("Type the name of the recipient: ");
                         string nameOfRecipientAccount = Console.ReadLine().Trim();
                         string[] temp = nameOfRecipientAccount.Split(' '); //splits "nameOfRecipientAccount" from 1 string into 2 elements in an array.
-                        //Checks to see if the recipients first and last name matches account number
-                        if (temp.Length != 2 || temp[0] != recepientAccount.firstName || temp[1] != recepientAccount.lastName) //If the match is false, you get the error message inside the statement.
+                        //Checks to see if the recipients first and last name matches account number TODO: Hur hanterar vi namn på t.ex. tre ord? T.ex. Otto von Snorre.
+                        if (temp.Length != 2 || temp[0] != recepientUserAccount.firstName || temp[1] != recepientUserAccount.lastName) //If the match is false, you get the error message inside the statement.
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine("Account number and name don't match. Please try again.");
                             Console.ResetColor();
                             continue;
                         }
-                        return recepientAccount; //if the match is exact, it will return name and account number.
+                        return (recepientBankAccount, recepientUserAccount); //if the match is exact, it will return name and account number.
                     }
                     else//error response if account wasnt found or user input wrong numbers.
                     {
@@ -184,7 +233,7 @@ namespace Bankomat
                     Console.WriteLine("Press \"Enter\" to return to main menu");
                     Console.WriteLine();
                     Console.ReadKey();
-                    return null;
+                    return (null, null);
                 }
             }
         }
@@ -216,6 +265,7 @@ namespace Bankomat
             }
             return false; //If person doesnt exist, return false. Lets user create new account.
         }
+                
         #endregion
 
         #region Create account methods
@@ -279,7 +329,7 @@ namespace Bankomat
         /// Asks the user to deposit money into his/her account. Adds new value onto the previous value and saves it.
         /// </summary>
         /// <param name="currentUserAccount"></param>
-        public void DepositMoney(User currentUserAccount)
+        public void DepositMoney(BankAccount currentBankAccount)
         {
             while (true)
             {
@@ -289,10 +339,10 @@ namespace Bankomat
                 {
                     if (amount >= 1) //Checks to see if user tries to deposit a value greater than 0
                     {
-                        currentUserAccount.Balance += amount; //Old balance + deposit = new balance
+                        currentBankAccount.Balance += amount; //Old balance + deposit = new balance
                         Console.WriteLine();
                         Console.WriteLine($"{amount:C} have successfully been added to your account.");
-                        currentUserAccount.SaveEventToTransferHistory("Deposit", amount); //saves new balance to users account.
+                        currentBankAccount.SaveEventToTransferHistory("Deposit", amount); //saves new balance to users account.
                         Console.ReadKey();
                         return;
                     }
@@ -327,7 +377,7 @@ namespace Bankomat
         /// Shows all previous transfer history to the user
         /// </summary>
         /// <param name="currentUserAccount"></param>
-        public void SeeTransferHistory(User currentUserAccount)
+        public void SeeTransferHistory(BankAccount currentBankAccount)
 
         {
             Console.Clear();
@@ -335,10 +385,10 @@ namespace Bankomat
             Console.WriteLine("Nr\tType".PadRight(15) + "\tAmount".PadRight(10) + "\tBalance".PadRight(10) + "\tDate and time");
             Console.WriteLine("----------------------------------------------------------------------------");
 
-            for (int i = 0; i < currentUserAccount.transferHistorik.Count; i++) //Loops through saved transferhistory, 10 transfers = 10 loops.
+            for (int i = 0; i < currentBankAccount.transferHistorik.Count; i++) //Loops through saved transferhistory, 10 transfers = 10 loops.
             {
                 // Hämtar ut varje specifik händelse som en separat sträng i listan transferHistorik.
-                string historikAttSkrivaUt = currentUserAccount.transferHistorik[i]; //copies everything saved in the list onto a single string.
+                string historikAttSkrivaUt = currentBankAccount.transferHistorik[i]; //copies everything saved in the list onto a single string.
                 string[] historikArray = historikAttSkrivaUt.Split(new char[] { ',' }); //Splits and seperates the single string into an array with (in this case) 4 elements.
                 //Prints out the array in a stylish fashion.
                 Console.WriteLine($"{i + 1}\t{historikArray[0].PadRight(10)}\t{historikArray[1].PadRight(15)}\t{historikArray[2].PadRight(15)}\t{historikArray[3]}");
@@ -355,61 +405,65 @@ namespace Bankomat
         /// Lets current user transfer money to a different account. Using first name, last name and account number of the recipient.
         /// </summary>
         /// <param name="currentUserAccount"></param>
-        public void TransferMoney(User currentUserAccount)
+        public void TransferMoney(BankAccount currentBankAccount)
         {
             Console.Clear();
             Console.WriteLine();
-            User recepientAccount = GetRecipientAccount(); //gets all info from recipient.        
+            var (recepientBankAccount, recepientUserAccount) = GetRecipientBankAccountAndUserAccount(); //gets all info from recipient.        
 
-            Console.Write("Enter the amount you would like to  transfer: ");
-            if (decimal.TryParse(Console.ReadLine(), out decimal amount))
+            if (recepientBankAccount != null && recepientUserAccount != null)
             {
-                if (amount == 0)
+                Console.Write("Enter the amount you would like to  transfer: ");
+                if (decimal.TryParse(Console.ReadLine(), out decimal amount))
                 {
-                    Console.WriteLine("Cant transfer nothing.");
-                    return;
+                    if (amount == 0)
+                    {
+                        Console.WriteLine("Cant transfer nothing.");
+                        return;
+                    }
+                    if (amount <= 0) //Makes sure you cant steal from recipient.
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine("You can't transfer a non-positive amount.");
+                        Console.ResetColor();
+                        Console.ReadKey();
+                        return;
+                    }
+                    if (amount > currentBankAccount.Balance) //Makes sure you can afford the transfer
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Your balance ({currentBankAccount.Balance:C}) is too low for the requested transfer.");
+                        Console.ResetColor();
+                        Console.ReadKey();
+                        return;
+                    }
+                    currentBankAccount.Balance -= amount; //current user loses x-amount of money
+                    recepientBankAccount.Balance += amount; //recipient gains x-amount of money
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine();
+                    Console.WriteLine($"You have transferred {amount:C} to {recepientUserAccount.firstName} {recepientUserAccount.lastName}.");
+                    Console.ResetColor();
+                    Console.ReadKey();
+                    //saves the new balance for each account. Current user and Recipient.               
+                    currentBankAccount.SaveEventToTransferHistory($"Trans > {recepientBankAccount.accountNumber}", amount);
+                    recepientBankAccount.SaveEventToTransferHistory($"Trans < {currentBankAccount.accountNumber}", amount);
                 }
-                if (amount <= 0) //Makes sure you cant steal from recipient.
+                else //Error response
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("You can't transfer a non-positive amount.");
+                    Console.WriteLine("\nInvalid input. Please enter a valid amount.\n");
                     Console.ResetColor();
                     Console.ReadKey();
                     return;
                 }
-                if (amount > currentUserAccount.Balance) //Makes sure you can afford the transfer
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Your balance ({currentUserAccount.Balance:C}) is too low for the requested transfer.");
-                    Console.ResetColor();
-                    Console.ReadKey();
-                    return;
-                }
-                currentUserAccount.Balance -= amount; //current user loses x-amount of money
-                recepientAccount.Balance += amount; //recipient gains x-amount of money
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine();
-                Console.WriteLine($"You have transferred {amount:C} to {recepientAccount.firstName} {recepientAccount.lastName}.");
-                Console.ResetColor();
-                Console.ReadKey();
-                //saves the new balance for each account. Current user and Recipient.               
-                currentUserAccount.SaveEventToTransferHistory($"Trans > {recepientAccount.accountNumber}", amount);
-                recepientAccount.SaveEventToTransferHistory($"Trans < {currentUserAccount.accountNumber}", amount);
             }
-            else //Error response
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("\nInvalid input. Please enter a valid amount.\n");
-                Console.ResetColor();
-                Console.ReadKey();
-                return;
-            }
+            
         }
         /// <summary>
         /// Lets the user input an amount to withdraw from the account.
         /// </summary>
         /// <param name="currentUserAccount"></param>
-        public void WithdrawMoney(User currentUserAccount)
+        public void WithdrawMoney(BankAccount currentBankAccount)
         {
             Console.Clear();
             Console.Write("\nPlease input the amount you would like to withdraw: ");
@@ -429,19 +483,19 @@ namespace Bankomat
                         Console.ReadKey();
                         return;
                     }
-                    if (amount <= currentUserAccount.Balance) //makes sure the amount withdrawl doesnt not exceed current balance.
+                    if (amount <= currentBankAccount.Balance) //makes sure the amount withdrawl doesnt not exceed current balance.
                     {
-                        currentUserAccount.Balance -= amount;
+                        currentBankAccount.Balance -= amount;
                         Console.WriteLine();
                         Console.WriteLine($"You withdrew {amount:C}");
-                        currentUserAccount.SaveEventToTransferHistory("Withdrawal", amount); //saves new balance
+                        currentBankAccount.SaveEventToTransferHistory("Withdrawal", amount); //saves new balance
                         Console.ReadKey();
                         return;
                     }
                     else //error response
                     {
                         Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine($"Your withdrawl request ({amount}) exceeds your current balance: ({currentUserAccount.Balance:C}).");
+                        Console.WriteLine($"Your withdrawl request ({amount}) exceeds your current balance: ({currentBankAccount.Balance:C}).");
                         Console.ResetColor();
                         Console.ReadKey();
                         return;
@@ -460,6 +514,7 @@ namespace Bankomat
         }
         #endregion
     }
+
 }
 
 

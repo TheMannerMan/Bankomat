@@ -7,10 +7,10 @@ using System.Threading.Tasks;
 namespace Bankomat
 {
     public class UI
-    {        
+    {
         private LogicAndData _atm;
         private DataRepository _dataRepository;
-        public UI(LogicAndData atm, DataRepository dataRepository) 
+        public UI(LogicAndData atm, DataRepository dataRepository)
         {
             _atm = atm;
             _dataRepository = dataRepository;
@@ -35,8 +35,24 @@ namespace Bankomat
                     switch (userChoiceMainMenu)
                     {
                         case 1:
-                            _atm.Login(this); //Lets user atempt to log in
+                            User LoginUser = _atm.Login(this); //Lets user atempt to log in
+                            if (LoginUser != null) //if user exist go on
+                            {
+                                if (!_atm.CheckIfMultipleBankAccount(LoginUser))
+                                {
+                                    AccountMenu(LoginUser.userBankAccounts[0], LoginUser);
+                                }
+                                else
+                                {
+                                    AccountMenu(_atm.LetUserChooseBankAccount(LoginUser), LoginUser); // Om användaren har fler konton så låter denna metod användaren att välja ett konto att gå vidare med.
+                                }
+                            }
+                            else
+                            {
+                                break;
+                            } // IF user doesnt exist. Go back to mainmenu.
                             break;
+
                         case 2:
                             _atm.CreateAccount(); //Lets user create an account.
                             break;
@@ -56,24 +72,27 @@ namespace Bankomat
                 }
                 else//error response
                 {
-                    Console.ForegroundColor= ConsoleColor.Red;
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("Please insert a valid number.");
                     Console.ResetColor();
                     Console.ReadKey();
                 }
             }
         }
+
+        
+
         /// <summary>
         /// Menu for when the user successfully logs in
         /// </summary>
         /// <param name="currentUserAccount"></param>
-        public void AccountMenu(User currentUserAccount)
+        public void AccountMenu(BankAccount currentBankAccount, User currentUserAccount)
         {
 
             while (true)
             {
                 #region AccountMenu text
-                
+
                 Console.Clear();
                 Console.WriteLine();
                 Console.WriteLine($"Welcome {currentUserAccount.firstName} {currentUserAccount.lastName}. Please make choice:");
@@ -90,28 +109,28 @@ namespace Bankomat
                     switch (userChoiceAccountMenu)
                     {
                         case 1:
-                            _atm.WithdrawMoney(currentUserAccount); //Lets the user withdrawl money from account                           
+                            _atm.WithdrawMoney(currentBankAccount); //Lets the user withdrawl money from account                           
                             break;
 
                         case 2:
-                            _atm.DepositMoney(currentUserAccount); //Lets the user deposit money to account                          
+                            _atm.DepositMoney(currentBankAccount); //Lets the user deposit money to account                          
                             break;
 
                         case 3:
-                            _atm.TransferMoney(currentUserAccount); //Lets the user transfer money to a different account                            
+                            _atm.TransferMoney(currentBankAccount); //Lets the user transfer money to a different account                            
                             break;
                         case 4:
                             Console.Clear();
-                            Console.WriteLine($"\nYour current balance is {currentUserAccount.Balance:C}"); //Checks users current balance
+                            Console.WriteLine($"\nYour current balance is {currentBankAccount.Balance:C}"); //Checks users current balance
                             Console.ReadKey();
                             break;
                         case 5:
-                            _atm.SeeTransferHistory(currentUserAccount); //Lists up prrevious transactions to the user.                            
+                            _atm.SeeTransferHistory(currentBankAccount); //Lists up prrevious transactions to the user.                            
                             break;
                         case 6://logout message
                             Console.Clear();
                             Console.WriteLine();
-                            Console.WriteLine("Logging you out. Have a pleasant rest of the day.");                         
+                            Console.WriteLine("Logging you out. Have a pleasant rest of the day.");
                             Console.ReadKey();
                             return;
                         default://error response
@@ -134,3 +153,5 @@ namespace Bankomat
         }
     }
 }
+
+
